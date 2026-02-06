@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, ChangeEvent } from "react";
 import "./App.css";
 import { useQuery, useMutation, gql } from "@apollo/client";
 
@@ -32,15 +32,36 @@ const CREATE_USER = gql`
   }
 `;
 
+interface User {
+  id: string;
+  name: string;
+  age: number;
+  isMarried: boolean;
+}
+
+interface NewUser {
+  name?: string;
+  age?: string;
+}
+
+interface GetUsersData {
+  getUsers: User[];
+}
+
+interface GetUserByIdData {
+  getUserById: User;
+}
+
 function App() {
-  const [newUser, setNewUser] = useState({});
+  const [newUser, setNewUser] = useState<NewUser>({});
 
   const {
     data: getUsersData,
     error: getUsersError,
     loading: getUsersLoading,
-  } = useQuery(GET_USERS);
-  const { data: getUserByIdData, loading: getUserByIdLoading } = useQuery(
+  } = useQuery<GetUsersData>(GET_USERS);
+
+  const { data: getUserByIdData, loading: getUserByIdLoading } = useQuery<GetUserByIdData>(
     GET_USER_BY_ID,
     {
       variables: { id: "2" },
@@ -51,9 +72,9 @@ function App() {
 
   if (getUsersLoading) return <p> Data loading...</p>;
 
-  if (getUsersError) return <p> Error: {error.message}</p>;
+  if (getUsersError) return <p> Error: {getUsersError.message}</p>;
 
-  const handleCreateUser = async () => {
+  const handleCreateUser = async (): Promise<void> => {
     console.log(newUser);
     createUser({
       variables: {
@@ -64,21 +85,25 @@ function App() {
     });
   };
 
+  const handleNameChange = (e: ChangeEvent<HTMLInputElement>): void => {
+    setNewUser((prev) => ({ ...prev, name: e.target.value }));
+  };
+
+  const handleAgeChange = (e: ChangeEvent<HTMLInputElement>): void => {
+    setNewUser((prev) => ({ ...prev, age: e.target.value }));
+  };
+
   return (
     <>
       <div>
         <input
           placeholder="Name..."
-          onChange={(e) =>
-            setNewUser((prev) => ({ ...prev, name: e.target.value }))
-          }
+          onChange={handleNameChange}
         />
         <input
           placeholder="Age..."
           type="number"
-          onChange={(e) =>
-            setNewUser((prev) => ({ ...prev, age: e.target.value }))
-          }
+          onChange={handleAgeChange}
         />
         <button onClick={handleCreateUser}> Create User</button>
       </div>
@@ -89,8 +114,8 @@ function App() {
         ) : (
           <>
             <h1> Chosen User: </h1>
-            <p>{getUserByIdData.getUserById.name}</p>
-            <p>{getUserByIdData.getUserById.age}</p>
+            <p>{getUserByIdData?.getUserById.name}</p>
+            <p>{getUserByIdData?.getUserById.age}</p>
           </>
         )}
       </div>
@@ -98,8 +123,8 @@ function App() {
       <h1> Users</h1>
       <div>
         {" "}
-        {getUsersData.getUsers.map((user) => (
-          <div>
+        {getUsersData?.getUsers.map((user: User) => (
+          <div key={user.id}>
             <p> Name: {user.name}</p>
             <p> Age: {user.age}</p>
             <p> Is this user married: {user.isMarried ? "Yes" : "No"}</p>

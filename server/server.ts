@@ -1,7 +1,24 @@
 import { ApolloServer } from "@apollo/server";
 import { startStandaloneServer } from "@apollo/server/standalone";
 
-const users = [
+interface User {
+  id: string;
+  name: string;
+  age: number;
+  isMarried: boolean;
+}
+
+interface CreateUserArgs {
+  name: string;
+  age: number;
+  isMarried: boolean;
+}
+
+interface GetUserByIdArgs {
+  id: string;
+}
+
+const users: User[] = [
   { id: "1", name: "John Doe", age: 30, isMarried: true },
   { id: "2", name: "Jane Smith", age: 25, isMarried: false },
   { id: "3", name: "Alice Johnson", age: 28, isMarried: false },
@@ -27,18 +44,18 @@ const typeDefs = `
 
 const resolvers = {
   Query: {
-    getUsers: () => {
+    getUsers: (): User[] => {
       return users;
     },
-    getUserById: (parent, args) => {
+    getUserById: (_parent: any, args: GetUserByIdArgs): User | undefined => {
       const id = args.id;
       return users.find((user) => user.id === id);
     },
   },
   Mutation: {
-    createUser: (parent, args) => {
+    createUser: (_parent: any, args: CreateUserArgs): User => {
       const { name, age, isMarried } = args;
-      const newUser = {
+      const newUser: User = {
         id: (users.length + 1).toString(),
         name,
         age,
@@ -46,6 +63,7 @@ const resolvers = {
       };
       console.log(newUser);
       users.push(newUser);
+      return newUser;
     },
   },
 };
