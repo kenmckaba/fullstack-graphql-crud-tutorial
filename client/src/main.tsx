@@ -3,7 +3,7 @@ console.log('🌟 main.tsx loading...');
 import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
-import { ApolloClient, InMemoryCache, split, HttpLink } from "@apollo/client";
+import { ApolloClient, InMemoryCache, HttpLink, ApolloLink } from "@apollo/client";
 import { ApolloProvider } from "@apollo/client/react";
 import { getMainDefinition } from "@apollo/client/utilities";
 import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
@@ -35,7 +35,7 @@ const wsLink = new GraphQLWsLink(createClient({
 console.log('GraphQL WebSocket client configured for ws://localhost:4000/graphql');
 
 // Split link to route operations to the correct link
-const splitLink = split(
+const splitLink = ApolloLink.split(
   ({ query }) => {
     const definition = getMainDefinition(query);
     return (
