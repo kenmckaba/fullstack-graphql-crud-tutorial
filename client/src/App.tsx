@@ -1,5 +1,4 @@
 import { useState, ChangeEvent, useEffect } from "react";
-import "./App.css";
 import { useQuery, useMutation, useSubscription } from "@apollo/client/react";
 import { gql } from "@apollo/client";
 
@@ -275,9 +274,9 @@ function App() {
     setNotifications(prev => [notification, ...prev].slice(0, 10)); // Keep only last 10 notifications
   };
 
-  if (getUsersLoading) return <p> Data loading...</p>;
+  if (getUsersLoading) return <p className="text-center p-8"> Data loading...</p>;
 
-  if (getUsersError) return <p> Error: {getUsersError.message}</p>;
+  if (getUsersError) return <p className="text-center p-8 text-red-600"> Error: {getUsersError.message}</p>;
 
   const handleCreateUser = async (): Promise<void> => {
     if (!newUser.name || !newUser.age) {
@@ -358,58 +357,43 @@ function App() {
   return (
     <>
       {/* Real-time Notifications */}
-      <div style={{
-        position: 'fixed',
-        top: 10,
-        right: 10,
-        maxWidth: '300px',
-        zIndex: 1000,
-        backgroundColor: '#f5f5f5',
-        border: '1px solid #ddd',
-        borderRadius: '8px',
-        padding: '10px'
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 style={{ margin: '0 0 10px 0', fontSize: '14px' }}>🔔 Real-time Updates</h3>
+      <div className="notification-panel">
+        <div className="notification-header">
+          <h3 className="notification-title">🔔 Real-time Updates</h3>
           <div>
             <button
               onClick={testSubscription}
-              style={{ fontSize: '10px', padding: '2px 6px', marginRight: '5px', backgroundColor: '#007bff', color: 'white', border: 'none' }}
+              className="text-xs px-1.5 py-0.5 mr-1 bg-blue-600 text-white border-0 rounded hover:bg-blue-700 transition-colors"
             >
               Test
             </button>
             {notifications.length > 0 && (
               <button
                 onClick={clearNotifications}
-                style={{ fontSize: '12px', padding: '2px 6px' }}
+                className="btn-secondary"
               >
                 Clear
               </button>
             )}
           </div>
         </div>
-        <div style={{ fontSize: '10px', color: '#666', marginBottom: '5px' }}>
+        <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">
           WebSocket: {wsStatus}
         </div>
         {notifications.length === 0 ? (
-          <p style={{ margin: 0, fontSize: '12px', color: '#666' }}>No notifications</p>
+          <p className="m-0 text-xs text-gray-600 dark:text-gray-400">No notifications</p>
         ) : (
-          <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+          <div className="max-h-48 overflow-y-auto">
             {notifications.map((notification, index) => (
               <div
                 key={index}
-                style={{
-                  fontSize: '12px',
-                  padding: '5px',
-                  margin: '2px 0',
-                  borderRadius: '4px',
-                  backgroundColor:
-                    notification.type === 'added' ? '#d4edda' :
-                    notification.type === 'updated' ? '#fff3cd' : '#f8d7da'
-                }}
+                className={`text-xs p-2 my-0.5 rounded ${
+                  notification.type === 'added' ? 'bg-green-100 dark:bg-green-900' :
+                  notification.type === 'updated' ? 'bg-yellow-100 dark:bg-yellow-900' : 'bg-red-100 dark:bg-red-900'
+                }`}
               >
                 <div>{notification.message}</div>
-                <div style={{ color: '#666', fontSize: '10px' }}>
+                <div className="text-gray-600 dark:text-gray-400 text-xs">
                   {notification.timestamp.toLocaleTimeString()}
                 </div>
               </div>
@@ -418,95 +402,92 @@ function App() {
         )}
       </div>
 
-      <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
+      <div className="p-5 max-w-4xl mx-auto">
         {/* Create User Form */}
-        <div style={{ marginBottom: '30px', padding: '20px', border: '1px solid #ddd', borderRadius: '8px' }}>
-          <h2>Create New User</h2>
-          <input
-            placeholder="Name..."
-            value={newUser.name || ''}
-            onChange={handleNameChange}
-            style={{ margin: '5px', padding: '8px', fontSize: '14px' }}
-          />
-          <input
-            placeholder="Age..."
-            type="number"
-            value={newUser.age || ''}
-            onChange={handleAgeChange}
-            style={{ margin: '5px', padding: '8px', fontSize: '14px' }}
-          />
-          <button
-            onClick={handleCreateUser}
-            style={{ margin: '5px', padding: '8px 16px', fontSize: '14px' }}
-          >
-            Create User
-          </button>
+        <div className="form-container">
+          <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100 text-center">Create New User</h2>
+          <div className="form-inputs">
+            <input
+              placeholder="Name..."
+              value={newUser.name || ''}
+              onChange={handleNameChange}
+              className="form-input"
+            />
+            <input
+              placeholder="Age..."
+              type="number"
+              value={newUser.age || ''}
+              onChange={handleAgeChange}
+              className="form-input"
+            />
+            <button
+              onClick={handleCreateUser}
+              className="btn-primary"
+            >
+              Create User
+            </button>
+          </div>
         </div>
 
         {/* Single User Display */}
-        <div style={{ marginBottom: '30px', padding: '20px', border: '1px solid #ddd', borderRadius: '8px' }}>
+        <div className="form-container">
           {getUserByIdLoading ? (
-            <p>Loading user...</p>
+            <p className="text-gray-600 dark:text-gray-400 text-center">Loading user...</p>
           ) : (
             <>
-              <h2>Featured User (ID: 2)</h2>
-              <div style={{ fontSize: '16px' }}>
-                <p><strong>Name:</strong> {getUserByIdData?.getUserById.name}</p>
-                <p><strong>Age:</strong> {getUserByIdData?.getUserById.age}</p>
-                <p><strong>Married:</strong> {getUserByIdData?.getUserById.isMarried ? 'Yes' : 'No'}</p>
+              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100 text-center">Featured User (ID: 2)</h2>
+              <div className="text-base text-center">
+                <p className="mb-2 text-center"><strong>Name:</strong> {getUserByIdData?.getUserById.name}</p>
+                <p className="mb-2 text-center"><strong>Age:</strong> {getUserByIdData?.getUserById.age}</p>
+                <p className="mb-2 text-center"><strong>Married:</strong> {getUserByIdData?.getUserById.isMarried ? 'Yes' : 'No'}</p>
               </div>
             </>
           )}
         </div>
 
         {/* All Users List */}
-        <div style={{ padding: '20px', border: '1px solid #ddd', borderRadius: '8px' }}>
-          <h2>All Users ({getUsersData?.getUsers.length || 0})</h2>
-          <div style={{ display: 'grid', gap: '15px' }}>
+        <div className="form-container">
+          <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100 text-center">All Users ({getUsersData?.getUsers.length || 0})</h2>
+          <div className="grid gap-4">
             {getUsersData?.getUsers.map((user: User) => (
               <div
                 key={user.id}
-                style={{
-                  padding: '15px',
-                  border: '1px solid #eee',
-                  borderRadius: '6px',
-                  backgroundColor: '#fafafa'
-                }}
+                className="user-card"
               >
                 {editingUser?.id === user.id ? (
                   // Edit mode
-                  <div>
+                  <div className="form-inputs">
                     <input
                       value={editingUser.name}
                       title="name"
                       onChange={(e) => setEditingUser({...editingUser, name: e.target.value})}
-                      style={{ margin: '2px', padding: '5px' }}
+                      className="form-input"
                     />
                     <input
                       type="number"
                       title="age"
                       value={editingUser.age}
                       onChange={(e) => setEditingUser({...editingUser, age: Number(e.target.value)})}
-                      style={{ margin: '2px', padding: '5px' }}
+                      className="form-input"
                     />
-                    <label style={{ margin: '2px' }}>
+                    <label className="m-1 flex items-center justify-center">
                       <input
                         type="checkbox"
                         checked={editingUser.isMarried}
                         onChange={(e) => setEditingUser({...editingUser, isMarried: e.target.checked})}
                       />
-                      Married
+                      <span className="ml-1">Married</span>
                     </label>
-                    <div style={{ marginTop: '8px' }}>
+                    <div className="button-group">
                       <button
                         onClick={() => handleUpdateUser()}
-                        style={{ margin: '2px', padding: '5px 10px', backgroundColor: '#28a745', color: 'white' }}
+                        className="m-1 px-3 py-1.5 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded transition-colors"
                       >
                         Save
                       </button>
                       <button
                         onClick={() => setEditingUser(null)}
-                        style={{ margin: '2px', padding: '5px 10px' }}
+                        className="btn-secondary"
                       >
                         Cancel
                       </button>
@@ -514,23 +495,23 @@ function App() {
                   </div>
                 ) : (
                   // View mode
-                  <div>
-                    <div style={{ marginBottom: '8px' }}>
-                      <p style={{ margin: '2px' }}><strong>ID:</strong> {user.id}</p>
-                      <p style={{ margin: '2px' }}><strong>Name:</strong> {user.name}</p>
-                      <p style={{ margin: '2px' }}><strong>Age:</strong> {user.age}</p>
-                      <p style={{ margin: '2px' }}><strong>Married:</strong> {user.isMarried ? 'Yes' : 'No'}</p>
+                  <div className="text-center">
+                    <div className="mb-2">
+                      <p className="mb-1 text-center"><strong>ID:</strong> {user.id}</p>
+                      <p className="mb-1 text-center"><strong>Name:</strong> {user.name}</p>
+                      <p className="mb-1 text-center"><strong>Age:</strong> {user.age}</p>
+                      <p className="mb-1 text-center"><strong>Married:</strong> {user.isMarried ? 'Yes' : 'No'}</p>
                     </div>
-                    <div>
+                    <div className="button-group">
                       <button
                         onClick={() => setEditingUser(user)}
-                        style={{ margin: '2px', padding: '5px 10px', backgroundColor: '#007bff', color: 'white' }}
+                        className="m-1 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDeleteUser(user.id)}
-                        style={{ margin: '2px', padding: '5px 10px', backgroundColor: '#dc3545', color: 'white' }}
+                        className="btn-danger"
                       >
                         Delete
                       </button>
