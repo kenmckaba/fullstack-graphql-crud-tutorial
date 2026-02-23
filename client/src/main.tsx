@@ -1,63 +1,75 @@
-console.log('🌟 main.tsx loading...');
+console.log('🌟 main.tsx loading...')
 
-import ReactDOM from "react-dom/client";
-import App from "./App.tsx";
-import "./index.css";
-import { ApolloClient, InMemoryCache, HttpLink, ApolloLink } from "@apollo/client";
-import { ApolloProvider } from "@apollo/client/react";
-import { getMainDefinition } from "@apollo/client/utilities";
-import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
-import { createClient } from "graphql-ws";
+import ReactDOM from 'react-dom/client'
+import App from './App.tsx'
+import './index.css'
+import {
+  ApolloClient,
+  ApolloLink,
+  HttpLink,
+  InMemoryCache,
+} from '@apollo/client'
+import { GraphQLWsLink } from '@apollo/client/link/subscriptions'
+import { ApolloProvider } from '@apollo/client/react'
+import { getMainDefinition } from '@apollo/client/utilities'
+import { createClient } from 'graphql-ws'
 
-console.log('📦 All imports loaded successfully');
+console.log('📦 All imports loaded successfully')
 
 // HTTP Link for queries and mutations
 const httpLink = new HttpLink({
-  uri: "http://localhost:4000/graphql",
-});
+  uri: 'http://localhost:4000/graphql',
+})
 
 // WebSocket Link for subscriptions
-const wsLink = new GraphQLWsLink(createClient({
-  url: "ws://localhost:4000/graphql",
-  connectionParams: () => {
-    console.log('WebSocket connection params being set');
-    return {};
-  },
-  on: {
-    connecting: () => console.log('WebSocket connecting...'),
-    connected: () => console.log('WebSocket connected successfully'),
-    error: (error) => console.error('WebSocket error:', error),
-    closed: () => console.log('WebSocket connection closed'),
-    message: (message) => console.log('WebSocket message received:', message),
-  },
-}));
+const wsLink = new GraphQLWsLink(
+  createClient({
+    url: 'ws://localhost:4000/graphql',
+    connectionParams: () => {
+      console.log('WebSocket connection params being set')
+      return {}
+    },
+    on: {
+      connecting: () => console.log('WebSocket connecting...'),
+      connected: () => console.log('WebSocket connected successfully'),
+      error: (error) => console.error('WebSocket error:', error),
+      closed: () => console.log('WebSocket connection closed'),
+      message: (message) => console.log('WebSocket message received:', message),
+    },
+  }),
+)
 
-console.log('GraphQL WebSocket client configured for ws://localhost:4000/graphql');
+console.log(
+  'GraphQL WebSocket client configured for ws://localhost:4000/graphql',
+)
 
 // Split link to route operations to the correct link
 const splitLink = ApolloLink.split(
   ({ query }) => {
-    const definition = getMainDefinition(query);
+    const definition = getMainDefinition(query)
     return (
-      definition.kind === "OperationDefinition" &&
-      definition.operation === "subscription"
-    );
+      definition.kind === 'OperationDefinition' &&
+      definition.operation === 'subscription'
+    )
   },
   wsLink,
   httpLink,
-);
+)
 
 const client = new ApolloClient({
   link: splitLink,
   cache: new InMemoryCache(),
-});
+})
 
-console.log('⚡ Apollo Client created, starting React render...');
+console.log('⚡ Apollo Client created, starting React render...')
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+const root = document.getElementById('root')
+if (!root) throw new Error('Root element not found')
+
+ReactDOM.createRoot(root).render(
   <ApolloProvider client={client}>
     <App />
-  </ApolloProvider>
-);
+  </ApolloProvider>,
+)
 
-console.log('✅ React app render initiated');
+console.log('✅ React app render initiated')

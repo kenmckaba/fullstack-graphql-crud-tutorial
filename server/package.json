@@ -1,34 +1,39 @@
 {
-  "name": "server",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "start": "node dist/server.js",
-    "dev": "npx tsx watch server.ts",
-    "build": "tsc",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
-  "dependencies": {
-    "@apollo/server": "^4.11.2",
-    "@graphql-tools/schema": "^10.0.31",
-    "cors": "^2.8.6",
-    "express": "^5.2.1",
-    "graphql": "^16.9.0",
-    "graphql-subscriptions": "^3.0.0",
-    "graphql-ws": "^6.0.7",
-    "ws": "^8.19.0"
-  },
-  "devDependencies": {
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.6",
-    "@types/node": "^20.0.0",
-    "@types/ws": "^8.18.1",
-    "tsx": "^4.0.0",
-    "typescript": "^5.0.0"
-  }
+	"name": "server",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"start": "node dist/server.js",
+		"dev": "npx tsx watch server.ts",
+		"build": "tsc",
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"lint": "biome lint .",
+		"lint:fix": "biome check --write .",
+		"format": "biome format . --write",
+		"check": "biome check ."
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"type": "module",
+	"dependencies": {
+		"@apollo/server": "^4.11.2",
+		"@graphql-tools/schema": "^10.0.31",
+		"cors": "^2.8.6",
+		"express": "^5.2.1",
+		"graphql": "^16.9.0",
+		"graphql-subscriptions": "^3.0.0",
+		"graphql-ws": "^6.0.7",
+		"ws": "^8.19.0"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.4.4",
+		"@types/cors": "^2.8.19",
+		"@types/express": "^5.0.6",
+		"@types/node": "^20.0.0",
+		"@types/ws": "^8.18.1",
+		"tsx": "^4.0.0",
+		"typescript": "^5.0.0"
+	}
 }
