@@ -50,10 +50,10 @@ const createAsyncIterator = (eventName: string) => {
 			return {
 				next: () =>
 					new Promise((resolve) => {
-						if (!listening) {
-							resolve({ done: true, value: undefined });
-						} else {
+						if (listening) {
 							listeners.push(resolve);
+						} else {
+							resolve({ done: true, value: undefined });
 						}
 					}),
 				return: () => {
