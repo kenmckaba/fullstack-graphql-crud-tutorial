@@ -91,8 +91,6 @@ interface User {
 interface NewUser {
   name?: string
   age?: string
-
-
 }
 
 interface SubscriptionNotification {
@@ -152,9 +150,12 @@ function App() {
     loading: getUsersLoading,
   } = useQuery<GetUsersData>(GET_USERS)
 
+  // Get the first user's ID dynamically instead of hardcoding "2"
+  const firstUserId = getUsersData?.getUsers?.[0]?.id
   const { data: getUserByIdData, loading: getUserByIdLoading } =
     useQuery<GetUserByIdData>(GET_USER_BY_ID, {
-      variables: { id: '2' },
+      variables: { id: firstUserId || '' },
+      skip: !firstUserId, // Skip the query if no user ID is available
     })
 
   const [createUser] = useMutation(CREATE_USER)
@@ -413,12 +414,13 @@ function App() {
             {notifications.map((notification) => (
               <div
                 key={notification.timestamp.getTime()}
-                className={`text-xs p-2 my-0.5 rounded ${notification.type === 'added'
-                  ? 'bg-green-100 dark:bg-green-900'
-                  : notification.type === 'updated'
-                    ? 'bg-yellow-100 dark:bg-yellow-900'
-                    : 'bg-red-100 dark:bg-red-900'
-                  }`}
+                className={`text-xs p-2 my-0.5 rounded ${
+                  notification.type === 'added'
+                    ? 'bg-green-100 dark:bg-green-900'
+                    : notification.type === 'updated'
+                      ? 'bg-yellow-100 dark:bg-yellow-900'
+                      : 'bg-red-100 dark:bg-red-900'
+                }`}
               >
                 <div>{notification.message}</div>
                 <div className="text-gray-600 dark:text-gray-400 text-xs">
@@ -466,24 +468,28 @@ function App() {
             <p className="text-gray-600 dark:text-gray-400 text-center">
               Loading user...
             </p>
-          ) : (
+          ) : getUserByIdData?.getUserById ? (
             <>
               <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100 text-center">
-                Featured User (ID: 2)
+                Featured User (ID: {getUserByIdData.getUserById.id})
               </h2>
               <div className="text-base text-center">
                 <p className="mb-2 text-center">
-                  <strong>Name:</strong> {getUserByIdData?.getUserById.name}
+                  <strong>Name:</strong> {getUserByIdData.getUserById.name}
                 </p>
                 <p className="mb-2 text-center">
-                  <strong>Age:</strong> {getUserByIdData?.getUserById.age}
+                  <strong>Age:</strong> {getUserByIdData.getUserById.age}
                 </p>
                 <p className="mb-2 text-center">
                   <strong>Married:</strong>{' '}
-                  {getUserByIdData?.getUserById.isMarried ? 'Yes' : 'No'}
+                  {getUserByIdData.getUserById.isMarried ? 'Yes' : 'No'}
                 </p>
               </div>
             </>
+          ) : (
+            <p className="text-gray-600 dark:text-gray-400 text-center">
+              No user found to feature
+            </p>
           )}
         </div>
 
