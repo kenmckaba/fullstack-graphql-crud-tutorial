@@ -6,16 +6,92 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
 }
 
 model User {
-  id        String  @id @default(cuid())
+  id        String   @id @default(cuid())
   name      String
-  age       Int
-  isMarried Boolean
+  email     String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Relationships
+  ownedLists     ShoppingList[]
+  sharedLists    ListShare[]
+  createdItems   Item[]
+
   @@map("users")
+}
+
+model ShoppingList {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Foreign key
+  ownerId     String
+
+  // Relationships
+  owner       User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  items       ListItem[]
+  sharedWith  ListShare[]
+
+  @@map("shopping_lists")
+}
+
+model Item {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  category    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Foreign key
+  createdById String
+
+  // Relationships
+  createdBy   User       @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  listItems   ListItem[]
+
+  @@map("items")
+}
+
+model ListItem {
+  id          String   @id @default(cuid())
+  quantity    Int      @default(1)
+  isCompleted Boolean  @default(false)
+  notes       String?
+  addedAt     DateTime @default(now())
+
+  // Foreign keys
+  listId      String
+  itemId      String
+
+  // Relationships
+  list        ShoppingList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  item        Item         @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, itemId])
+  @@map("list_items")
+}
+
+model ListShare {
+  id         String   @id @default(cuid())
+  permission String   @default("view") // "view", "edit", "admin"
+  sharedAt   DateTime @default(now())
+
+  // Foreign keys
+  listId     String
+  userId     String
+
+  // Relationships
+  list       ShoppingList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, userId])
+  @@map("list_shares")
 }

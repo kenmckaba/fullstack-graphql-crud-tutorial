@@ -4,33 +4,53 @@ import { ApolloServer } from "@apollo/server";
 import { expressMiddleware } from "@apollo/server/express4";
 import { ApolloServerPluginDrainHttpServer } from "@apollo/server/plugin/drainHttpServer";
 import { makeExecutableSchema } from "@graphql-tools/schema";
-import { PrismaPg } from "@prisma/adapter-pg";
+// import { createClient } from "@libsql/client";
+import { PrismaLibSql } from "@prisma/adapter-libsql";
 import { PrismaClient } from "@prisma/client";
 import cors from "cors";
 import express from "express";
 import { useServer } from "graphql-ws/use/ws";
-import { Pool } from "pg";
 import { WebSocketServer } from "ws";
 import "dotenv/config";
 
-// Initialize PostgreSQL connection pool
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-
-// Initialize Prisma Client with PostgreSQL adapter
-const adapter = new PrismaPg(pool);
+// Initialize Prisma Client with libSQL adapter
+if (!process.env.DATABASE_URL) {
+	throw new Error("DATABASE_URL environment variable is required");
+}
+const adapter = new PrismaLibSql({
+	url: process.env.DATABASE_URL,
+});
 const prisma = new PrismaClient({ adapter });
 
 interface User {
 	id: string;
 	name: string;
-	age: number;
-	isMarried: boolean;
+	email: string;
 }
+
+// Interfaces removed - using Prisma generated types instead
 
 interface CreateUserArgs {
 	name: string;
-	age: number;
-	isMarried: boolean;
+	email: string;
+}
+
+interface CreateListArgs {
+	title: string;
+	description?: string;
+	isPublic?: boolean;
+}
+
+interface CreateItemArgs {
+	name: string;
+	category?: string;
+}
+
+interface AddItemToListArgs {
+	listId: string;
+	itemName: string;
+	quantity?: number;
+	notes?: string;
 }
 
 interface GetUserByIdArgs {
@@ -81,25 +101,93 @@ const typeDefs = `
     type Query {
       getUsers: [User]
       getUserById(id: ID!): User
+      getUserLists(userId: ID!): [ShoppingList]
+      getListItems(listId: ID!): [ListItemWithDetails]
+      searchItems(query: String!): [Item]
     }
 
     type Mutation {
-      createUser(name: String!, age: Int!, isMarried: Boolean!): User
-      updateUser(id: ID!, name: String, age: Int, isMarried: Boolean): User
+      createUser(name: String!, email: String!): User
+      updateUser(id: ID!, name: String, email: String): User
       deleteUser(id: ID!): Boolean
+
+      createList(title: String!, description: String, isPublic: Boolean): ShoppingList
+      updateList(id: ID!, title: String, description: String, isPublic: Boolean): ShoppingList
+      deleteList(id: ID!): Boolean
+      shareList(listId: ID!, userId: ID!, permission: String!): Boolean
+
+      createItem(name: String!, category: String): Item
+      addItemToList(listId: ID!, itemName: String!, quantity: Int, notes: String): ListItemWithDetails
+      updateListItem(id: ID!, quantity: Int, isCompleted: Boolean, notes: String): ListItemWithDetails
+      removeItemFromList(id: ID!): Boolean
     }
 
     type Subscription {
       userAdded: User
       userUpdated: User
       userDeleted: String
+
+      listAdded: ShoppingList
+      listUpdated: ShoppingList
+      listDeleted: String
+
+      itemAddedToList: ListItemWithDetails
+      itemUpdated: ListItemWithDetails
+      itemRemoved: String
     }
 
     type User {
-      id: ID
-      name: String
-      age: Int
-      isMarried: Boolean
+      id: ID!
+      name: String!
+      email: String!
+      ownedLists: [ShoppingList]
+      sharedLists: [ListShare]
+      createdAt: String
+    }
+
+    type ShoppingList {
+      id: ID!
+      title: String!
+      description: String
+      isPublic: Boolean!
+      owner: User!
+      items: [ListItemWithDetails]
+      sharedWith: [ListShare]
+      createdAt: String
+    }
+
+    type Item {
+      id: ID!
+      name: String!
+      category: String
+      createdBy: User!
+      createdAt: String
+    }
+
+    type ListItem {
+      id: ID!
+      quantity: Int!
+      isCompleted: Boolean!
+      notes: String
+      addedAt: String
+    }
+
+    type ListItemWithDetails {
+      id: ID!
+      quantity: Int!
+      isCompleted: Boolean!
+      notes: String
+      addedAt: String
+      item: Item!
+      list: ShoppingList!
+    }
+
+    type ListShare {
+      id: ID!
+      permission: String!
+      user: User!
+      list: ShoppingList!
+      sharedAt: String
     }
 `;
 
@@ -114,6 +202,80 @@ const resolvers = {
 		): Promise<User | null> => {
 			return await prisma.user.findUnique({
 				where: { id: args.id },
+				include: {
+					ownedLists: true,
+					sharedLists: {
+						include: {
+							list: true,
+						},
+					},
+				},
+			});
+		},
+		getUserLists: async (_parent: unknown, args: { userId: string }) => {
+			const ownedLists = await prisma.shoppingList.findMany({
+				where: { ownerId: args.userId },
+				include: {
+					owner: true,
+					items: {
+						include: {
+							item: true,
+						},
+					},
+				},
+			});
+
+			const sharedLists = await prisma.listShare.findMany({
+				where: { userId: args.userId },
+				include: {
+					list: {
+						include: {
+							owner: true,
+							items: {
+								include: {
+									item: true,
+								},
+							},
+						},
+					},
+				},
+			});
+
+			return [
+				...ownedLists,
+				...sharedLists.map((share: { list: unknown }) => share.list),
+			];
+		},
+		getListItems: async (_parent: unknown, args: { listId: string }) => {
+			return await prisma.listItem.findMany({
+				where: { listId: args.listId },
+				include: {
+					item: {
+						include: {
+							createdBy: true,
+						},
+					},
+					list: {
+						include: {
+							owner: true,
+						},
+					},
+				},
+				orderBy: {
+					addedAt: "desc",
+				},
+			});
+		},
+		searchItems: async (_parent: unknown, args: { query: string }) => {
+			return await prisma.item.findMany({
+				where: {
+					name: {
+						contains: args.query,
+					},
+				},
+				include: {
+					createdBy: true,
+				},
 			});
 		},
 	},
@@ -122,50 +284,37 @@ const resolvers = {
 			_parent: unknown,
 			args: CreateUserArgs,
 		): Promise<User> => {
-			const { name, age, isMarried } = args;
+			const { name, email } = args;
 			const newUser = await prisma.user.create({
 				data: {
 					name,
-					age,
-					isMarried,
+					email,
 				},
 			});
 
 			console.log("Created new user:", newUser);
-
-			// Publish the new user to subscribers
-			console.log("Publishing USER_ADDED event:", { userAdded: newUser });
 			eventEmitter.emit("USER_ADDED", { userAdded: newUser });
-
 			return newUser;
 		},
 		updateUser: async (
 			_parent: unknown,
-			args: { id: string; name?: string; age?: number; isMarried?: boolean },
+			args: { id: string; name?: string; email?: string },
 		): Promise<User | null> => {
 			try {
-				// Build the data object with only defined fields
 				const updateData: {
 					name?: string;
-					age?: number;
-					isMarried?: boolean;
+					email?: string;
 				} = {};
 
 				if (args.name !== undefined) updateData.name = args.name;
-				if (args.age !== undefined) updateData.age = args.age;
-				if (args.isMarried !== undefined) updateData.isMarried = args.isMarried;
+				if (args.email !== undefined) updateData.email = args.email;
 
 				const updatedUser = await prisma.user.update({
 					where: { id: args.id },
 					data: updateData,
 				});
 
-				// Publish the updated user to subscribers
-				console.log("Publishing USER_UPDATED event:", {
-					userUpdated: updatedUser,
-				});
 				eventEmitter.emit("USER_UPDATED", { userUpdated: updatedUser });
-
 				return updatedUser;
 			} catch (error) {
 				console.error("Error updating user:", error);
@@ -181,13 +330,158 @@ const resolvers = {
 					where: { id: args.id },
 				});
 
-				// Publish the deleted user ID to subscribers
-				console.log("Publishing USER_DELETED event:", { userDeleted: args.id });
 				eventEmitter.emit("USER_DELETED", { userDeleted: args.id });
-
 				return true;
 			} catch (error) {
 				console.error("Error deleting user:", error);
+				throw new Error(
+					`Failed to delete user: ${error instanceof Error ? error.message : "Unknown error"}`,
+				);
+			}
+		},
+
+		createList: async (
+			_parent: unknown,
+			args: CreateListArgs & { ownerId: string },
+		) => {
+			const newList = await prisma.shoppingList.create({
+				data: {
+					title: args.title,
+					description: args.description || null,
+					isPublic: args.isPublic || false,
+					ownerId: args.ownerId, // This should come from auth context
+				},
+				include: {
+					owner: true,
+					items: {
+						include: {
+							item: true,
+						},
+					},
+				},
+			});
+
+			eventEmitter.emit("LIST_ADDED", { listAdded: newList });
+			return newList;
+		},
+
+		createItem: async (
+			_parent: unknown,
+			args: CreateItemArgs & { createdById: string },
+		) => {
+			// Check if item already exists
+			const existingItem = await prisma.item.findUnique({
+				where: { name: args.name },
+			});
+
+			if (existingItem) {
+				return existingItem;
+			}
+
+			return await prisma.item.create({
+				data: {
+					name: args.name,
+					category: args.category || null,
+					createdById: args.createdById, // This should come from auth context
+				},
+				include: {
+					createdBy: true,
+				},
+			});
+		},
+
+		addItemToList: async (_parent: unknown, args: AddItemToListArgs) => {
+			// First, create or find the item
+			let item = await prisma.item.findUnique({
+				where: { name: args.itemName },
+			});
+
+			if (!item) {
+				item = await prisma.item.create({
+					data: {
+						name: args.itemName,
+						createdById: "system", // For now, using system user
+					},
+				});
+			}
+
+			// Add item to list
+			const listItem = await prisma.listItem.create({
+				data: {
+					listId: args.listId,
+					itemId: item.id,
+					quantity: args.quantity || 1,
+					notes: args.notes || null,
+				},
+				include: {
+					item: {
+						include: {
+							createdBy: true,
+						},
+					},
+					list: {
+						include: {
+							owner: true,
+						},
+					},
+				},
+			});
+
+			eventEmitter.emit("ITEM_ADDED_TO_LIST", { itemAddedToList: listItem });
+			return listItem;
+		},
+
+		updateListItem: async (
+			_parent: unknown,
+			args: {
+				id: string;
+				quantity?: number;
+				isCompleted?: boolean;
+				notes?: string;
+			},
+		) => {
+			const updateData: {
+				quantity?: number;
+				isCompleted?: boolean;
+				notes?: string;
+			} = {};
+
+			if (args.quantity !== undefined) updateData.quantity = args.quantity;
+			if (args.isCompleted !== undefined)
+				updateData.isCompleted = args.isCompleted;
+			if (args.notes !== undefined) updateData.notes = args.notes;
+
+			const updatedItem = await prisma.listItem.update({
+				where: { id: args.id },
+				data: updateData,
+				include: {
+					item: {
+						include: {
+							createdBy: true,
+						},
+					},
+					list: {
+						include: {
+							owner: true,
+						},
+					},
+				},
+			});
+
+			eventEmitter.emit("ITEM_UPDATED", { itemUpdated: updatedItem });
+			return updatedItem;
+		},
+
+		removeItemFromList: async (_parent: unknown, args: { id: string }) => {
+			try {
+				await prisma.listItem.delete({
+					where: { id: args.id },
+				});
+
+				eventEmitter.emit("ITEM_REMOVED", { itemRemoved: args.id });
+				return true;
+			} catch (error) {
+				console.error("Error removing item from list:", error);
 				return false;
 			}
 		},
@@ -196,7 +490,6 @@ const resolvers = {
 		userAdded: {
 			subscribe: () => {
 				console.log("Client subscribed to USER_ADDED");
-				console.log("Creating async iterator for USER_ADDED");
 				return createAsyncIterator("USER_ADDED");
 			},
 		},
@@ -211,6 +504,24 @@ const resolvers = {
 				console.log("Client subscribed to USER_DELETED");
 				return createAsyncIterator("USER_DELETED");
 			},
+		},
+		listAdded: {
+			subscribe: () => createAsyncIterator("LIST_ADDED"),
+		},
+		listUpdated: {
+			subscribe: () => createAsyncIterator("LIST_UPDATED"),
+		},
+		listDeleted: {
+			subscribe: () => createAsyncIterator("LIST_DELETED"),
+		},
+		itemAddedToList: {
+			subscribe: () => createAsyncIterator("ITEM_ADDED_TO_LIST"),
+		},
+		itemUpdated: {
+			subscribe: () => createAsyncIterator("ITEM_UPDATED"),
+		},
+		itemRemoved: {
+			subscribe: () => createAsyncIterator("ITEM_REMOVED"),
 		},
 	},
 };
@@ -264,12 +575,21 @@ app.use(
 	expressMiddleware(server) as unknown as express.RequestHandler,
 );
 
-const PORT = 4000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 4000;
+const HOST = process.env.HOST || '0.0.0.0';
 
 // Now that our HTTP server is fully set up, we can listen to it
-httpServer.listen(PORT, () => {
-	console.log(`Server is now running on http://localhost:${PORT}/graphql`);
-	console.log(`Subscriptions ready at ws://localhost:${PORT}/graphql`);
+httpServer.listen(PORT, HOST, () => {
+	console.log(`Server is now running on http://${HOST}:${PORT}/graphql`);
+	console.log(`Subscriptions ready at ws://${HOST}:${PORT}/graphql`);
+
+	// For development, show the local network access URLs
+	if (HOST === '0.0.0.0') {
+		console.log(`\nServer can be accessed from other devices at:`);
+		console.log(`- Local: http://localhost:${PORT}/graphql`);
+		console.log(`- Network: http://[YOUR_IP_ADDRESS]:${PORT}/graphql`);
+		console.log(`\nTo find your IP address, run: ipconfig (Windows) or ifconfig (Mac/Linux)`);
+	}
 });
 
 ///// Query, Mutation, Subscription
